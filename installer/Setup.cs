@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
 
 class Setup
 {
@@ -19,33 +20,65 @@ class Setup
                 rootDir = Path.GetDirectoryName(rootDir.TrimEnd(Path.DirectorySeparatorChar));
             }
 
+            Console.WriteLine(string.Format("Project Root: {0}", rootDir));
+
+            // 1. Git Metadata & Repo Tracking
+            string gitDir = Path.Combine(rootDir, ".git");
+            if (Directory.Exists(gitDir))
+            {
+                Console.WriteLine("\n[!] DETECTED: .git folder in project root.");
+                
+                // Try to save repo URL before deleting .git
+                string repoUrl = GetRepoUrl(rootDir);
+                if (!string.IsNullOrEmpty(repoUrl))
+                {
+                    SaveRepoUrl(rootDir, repoUrl);
+                    Console.WriteLine("Saved Repository URL for future updates.");
+                }
+
+                Console.WriteLine("If you copied this PKB to a new project, you should delete this .git folder");
+                Console.WriteLine("to prevent GIT from treating this as a nested repository.");
+                Console.Write("Delete .git folder? (y/n): ");
+                string response = Console.ReadLine().ToLower();
+                if (response == "y")
+                {
+                    Console.Write("Deleting .git... ");
+                    DeleteDirectory(gitDir);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Done.");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.WriteLine("Skipped cleanup.");
+                }
+            }
+
             string scriptsDir = Path.Combine(rootDir, "scripts");
             if (!Directory.Exists(scriptsDir))
             {
                 throw new DirectoryNotFoundException(string.Format("Could not find scripts directory at: {0}", scriptsDir));
             }
 
-            Console.WriteLine(string.Format("Project Root: {0}", rootDir));
-
-            // 1. Update PATH
-            Console.Write("Updating User PATH... ");
+            // 2. Update PATH
+            Console.WriteLine("\n[2/3] Updating User PATH...");
             string path = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User);
             if (!path.Split(';').Contains(scriptsDir))
             {
                 string newPath = path + (path.EndsWith(";") ? "" : ";") + scriptsDir;
                 Environment.SetEnvironmentVariable("Path", newPath, EnvironmentVariableTarget.User);
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Done.");
+                Console.WriteLine("   -> Added to PATH.");
             }
             else
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("Already present.");
+                Console.WriteLine("   -> PATH already set.");
             }
             Console.ResetColor();
 
-            // 2. Add PS Aliases
-            Console.Write("Updating PowerShell Profile... ");
+            // 3. Add PS Aliases
+            Console.WriteLine("[3/3] Updating PowerShell Profile...");
             string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             string profilePath = Path.Combine(myDocuments, "WindowsPowerShell", "Microsoft.PowerShell_profile.ps1");
             string profileDir = Path.GetDirectoryName(profilePath);
@@ -76,12 +109,12 @@ function init-context {{ & ""{5}"" @args }}
             {
                 File.AppendAllText(profilePath, "\n" + aliasBlock);
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Done.");
+                Console.WriteLine("   -> Aliases added to profile.");
             }
             else
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("Already present.");
+                Console.WriteLine("   -> Aliases already present.");
             }
             Console.ResetColor();
 
@@ -98,5 +131,51 @@ function init-context {{ & ""{5}"" @args }}
 
         Console.WriteLine("\nPress any key to exit...");
         Console.ReadKey();
+    }
+
+    static string GetRepoUrl(string rootDir)
+    {
+        try
+        {
+            Process p = new Process();
+            p.StartInfo.FileName = "git";
+            p.StartInfo.Arguments = "remote get-url origin";
+            p.StartInfo.WorkingDirectory = rootDir;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.CreateNoWindow = true;
+            p.Start();
+            string output = p.StandardOutput.ReadToEnd().Trim();
+            p.WaitForExit();
+            if (p.ExitCode == 0) return output;
+        } catch {}
+        return null;
+    }
+
+    static void SaveRepoUrl(string rootDir, string url)
+    {
+        string contextDir = Path.Combine(rootDir, ".context");
+        if (!Directory.Exists(contextDir)) Directory.CreateDirectory(contextDir);
+        File.WriteAllText(Path.Combine(contextDir, "repo.url"), url);
+    }
+
+    // Helper to handle read-only files in .git
+    static void DeleteDirectory(string targetDir)
+    {
+        string[] files = Directory.GetFiles(targetDir);
+        string[] dirs = Directory.GetDirectories(targetDir);
+
+        foreach (string file in files)
+        {
+            File.SetAttributes(file, FileAttributes.Normal);
+            File.Delete(file);
+        }
+
+        foreach (string dir in dirs)
+        {
+            DeleteDirectory(dir);
+        }
+
+        Directory.Delete(targetDir, false);
     }
 }

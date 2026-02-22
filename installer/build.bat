@@ -11,11 +11,25 @@ echo Compiling Setup.cs...
 "%CSC_PATH%" /out:Setup.exe Setup.cs
 
 if %ERRORLEVEL% equ 0 (
-    echo.
     echo Success: Setup.exe created!
 ) else (
-    echo.
-    echo Build failed.
+    echo Build failed for Setup.cs
+    pause
+    exit /b 1
 )
 
+echo.
+echo Compiling Update.cs...
+"%CSC_PATH%" /out:Update.exe Update.cs
+
+if %ERRORLEVEL% equ 0 (
+    echo Success: Update.exe created!
+) else (
+    echo Build failed for Update.cs
+    pause
+    exit /b 1
+)
+
+echo.
+echo Compile Complete!
 pause
