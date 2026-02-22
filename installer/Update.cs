@@ -7,13 +7,39 @@ class Update
 {
     static void Main(string[] args)
     {
+        string currentExe = Process.GetCurrentProcess().MainModule.FileName;
+        string tempDir = Path.GetTempPath();
+        
+        // 1. Self-Bootstrapping: If not in TEMP, copy there and restart
+        if (!currentExe.StartsWith(tempDir, StringComparison.OrdinalIgnoreCase))
+        {
+            string tempExe = Path.Combine(tempDir, "pkb_updater_running.exe");
+            try
+            {
+                File.Copy(currentExe, tempExe, true);
+                Process.Start(tempExe, "\"" + currentExe + "\""); 
+                return; // Exit the original process
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Bootstrap failed: " + ex.Message);
+            }
+        }
+
+        // --- Start of Main Logic (Running from TEMP) ---
+        string originalLocation = args.Length > 0 ? args[0] : null;
+
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("Personal Knowledge Base - One-Click Updater");
+        Console.WriteLine("Personal Knowledge Base - One-Click Updater (Bootstrapped)");
         Console.ResetColor();
 
         try
         {
-            string rootDir = AppDomain.CurrentDomain.BaseDirectory;
+            // Determine rootDir based on where we WERE run from
+            string rootDir = string.IsNullOrEmpty(originalLocation) 
+                ? AppDomain.CurrentDomain.BaseDirectory 
+                : Path.GetDirectoryName(originalLocation);
+
             if (Path.GetFileName(rootDir.TrimEnd(Path.DirectorySeparatorChar)).ToLower() == "installer")
             {
                 rootDir = Path.GetDirectoryName(rootDir.TrimEnd(Path.DirectorySeparatorChar));
@@ -34,8 +60,9 @@ class Update
             // 1. Try Git Pull if .git exists
             if (Directory.Exists(Path.Combine(rootDir, ".git")))
             {
-                Console.WriteLine("Executing 'git pull'...");
-                RunCommand("git", "pull", rootDir);
+                Console.WriteLine("Executing 'git pull --no-edit'...");
+                // Use --no-edit to prevent editor from opening for merge commits
+                RunCommand("git", "pull --no-edit", rootDir);
             }
             else
             {
@@ -98,6 +125,7 @@ class Update
         File.WriteAllText(Path.Combine(contextDir, "repo.url"), url);
     }
 
+    static int pullRetries = 0;
     static void RunCommand(string cmd, string args, string workingDir)
     {
         Process p = new Process();
@@ -113,22 +141,53 @@ class Update
         string error = p.StandardError.ReadToEnd();
         p.WaitForExit();
 
+        string combinedOutput = (output + "\n" + error).Trim();
+
         if (p.ExitCode != 0)
         {
-            if (cmd == "git" && args == "pull")
+            if (cmd == "git" && args.StartsWith("pull"))
             {
-                if (error.Contains("local changes"))
+                pullRetries++;
+                if (pullRetries > 2) throw new Exception("Update failed after multiple recovery attempts. Please resolve conflicts manually using 'git status'.");
+
+                if (combinedOutput.Contains("local changes") || 
+                    combinedOutput.Contains("untracked working tree files") ||
+                    combinedOutput.Contains("CONFLICT") ||
+                    combinedOutput.Contains("Automatic merge failed"))
                 {
-                    throw new Exception("Git Conflict: You have local uncommitted changes that would be overwritten by a pull.\n" +
-                                        "Please COMMIT your changes or run 'git stash' before updating.");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("\n[!] CONFLICT: Local changes or merge conflicts are blocking the update.");
+                    Console.ResetColor();
+                    Console.Write("Would you like to FORCE SYNC? (This wipes local plumbing safely, preserving 'knowledge/') (y/n): ");
+                    if (Console.ReadLine().ToLower() == "y")
+                    {
+                        Console.WriteLine("Executing Force Sync (Fetch & Reset)...");
+                        RunCommand("git", "merge --abort", workingDir);
+                        RunCommand("git", "fetch --all", workingDir);
+                        // Force align with the remote master
+                        RunCommand("git", "reset --hard origin/master", workingDir);
+                        RunCommand("git", "clean -fd", workingDir);
+                        Console.WriteLine("Force Sync complete. Retrying pull...");
+                        RunCommand(cmd, args, workingDir);
+                        return;
+                    }
                 }
-                if (error.Contains("unmerged files") || error.Contains("unresolved conflict"))
+                
+                if (combinedOutput.Contains("unmerged files") || combinedOutput.Contains("unresolved conflict"))
                 {
-                    throw new Exception("Git Conflict: You have unresolved merge conflicts from a previous attempt.\n" +
-                                        "Please run 'git merge --abort' to reset your project state and try again.");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("\n[!] DETECTED: Unresolved merge conflicts from a previous attempt.");
+                    Console.ResetColor();
+                    Console.Write("Would you like me to run 'git merge --abort' for you? (y/n): ");
+                    if (Console.ReadLine().ToLower() == "y")
+                    {
+                        RunCommand("git", "merge --abort", workingDir);
+                        RunCommand(cmd, args, workingDir);
+                        return; 
+                    }
                 }
             }
-            throw new Exception(string.Format("Command '{0} {1}' failed.\nError: {2}", cmd, args, error));
+            throw new Exception(string.Format("Command '{0} {1}' failed.\nOutput:\n{2}", cmd, args, combinedOutput));
         }
     }
 
