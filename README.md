@@ -15,7 +15,7 @@ This repository serves as a centralized hub for AI workflows, persistent memory,
 
 ### Installation (Easy Method)
 1. **Copy** the `personalKb` folder to your project root (or keep it central).
-2. **Run** [Setup.exe](file:///c:/Users/allen/repos/personalKb/Setup.exe). This will add the tools to your PATH and set up PowerShell aliases.
+2. **Run** [Setup.exe](file:///c:/Users/allen/repos/personalKb/Setup.exe). This will add the tools to your PATH, set up PowerShell aliases, and optionally **clean up Git metadata** to prevent nested repository issues.
 
 ### Installation (Script Method)
 If you prefer scripts, run the following from your project root:
@@ -93,6 +93,14 @@ sequenceDiagram
     Note over Script: Context Locked to Parent/.context/
     Script->>FS: Detect Stack & Update .context/knowledge/project_architecture.md
 ```
+
+## 🔄 Keeping Projects Up to Date
+
+Since nested installations usually lack Git metadata, use the **One-Click Update** method:
+
+1. **Run** [Update.exe](file:///c:/Users/allen/repos/personalKb/Update.exe).
+2. It will detect your GitHub source and refresh your scripts, agents, and standards.
+3. Your project-specific `knowledge/` and `memory/` are preserved during the update.
 
 ## 🚀 Two-Layer Deployment
 
