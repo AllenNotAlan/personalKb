@@ -100,12 +100,28 @@ class Update
 
     static void RunCommand(string cmd, string args, string workingDir)
     {
-        ProcessStartInfo psi = new ProcessStartInfo(cmd, args);
-        psi.WorkingDirectory = workingDir;
-        psi.UseShellExecute = false;
-        var p = Process.Start(psi);
+        Process p = new Process();
+        p.StartInfo.FileName = cmd;
+        p.StartInfo.Arguments = args;
+        p.StartInfo.WorkingDirectory = workingDir;
+        p.StartInfo.UseShellExecute = false;
+        p.StartInfo.RedirectStandardError = true;
+        p.StartInfo.RedirectStandardOutput = true;
+        p.Start();
+
+        string output = p.StandardOutput.ReadToEnd();
+        string error = p.StandardError.ReadToEnd();
         p.WaitForExit();
-        if (p.ExitCode != 0) throw new Exception(string.Format("Command '{0} {1}' failed.", cmd, args));
+
+        if (p.ExitCode != 0)
+        {
+            if (cmd == "git" && args == "pull" && error.Contains("local changes"))
+            {
+                throw new Exception("Git Conflict: You have local uncommitted changes that would be overwritten by a pull.\n" +
+                                    "Please COMMIT your changes or run 'git stash' before updating.");
+            }
+            throw new Exception(string.Format("Command '{0} {1}' failed.\nError: {2}", cmd, args, error));
+        }
     }
 
     static void DownloadAndExtractZip(string repoUrl, string rootDir)
