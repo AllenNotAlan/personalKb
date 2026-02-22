@@ -9,11 +9,16 @@ This repository serves as a centralized hub for AI workflows, persistent memory,
 - **📜 Standards**: Language-specific and architectural best practices in `standards/`.
 - **💻 CLI Integration**: PowerShell scripts in `scripts/` for quick interaction.
 - **🔍 Smart Tracking**: Automatically track project tech stacks and document architecture.
+- **📄 [Architecture Guide](docs/architecture.md)**: Detailed explanation of how memory and discovery logic work.
 
 ## Getting Started
 
-### Installation (into a new project)
-To "install" this context into a project, run the following from your project root:
+### Installation (Easy Method)
+1. **Copy** the `personalKb` folder to your project root (or keep it central).
+2. **Run** [Setup.exe](file:///c:/Users/allen/repos/personalKb/Setup.exe). This will add the tools to your PATH and set up PowerShell aliases.
+
+### Installation (Script Method)
+If you prefer scripts, run the following from your project root:
 ```powershell
 powershell -ExecutionPolicy Bypass -File "C:/Users/allen/repos/personalKb/scripts/Install-Context.ps1"
 ```
