@@ -9,6 +9,7 @@ This repository serves as a centralized hub for AI workflows, persistent memory,
 - **📜 Standards**: Language-specific and architectural best practices in `standards/`.
 - **💻 CLI Integration**: PowerShell scripts in `scripts/` for quick interaction.
 - **🔍 Smart Tracking**: Automatically track project tech stacks and document architecture.
+- **📄 [Architecture Guide](docs/architecture.md)**: Detailed explanation of how memory and discovery logic work.
 
 ## Getting Started
 
