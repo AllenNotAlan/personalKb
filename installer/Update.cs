@@ -115,10 +115,18 @@ class Update
 
         if (p.ExitCode != 0)
         {
-            if (cmd == "git" && args == "pull" && error.Contains("local changes"))
+            if (cmd == "git" && args == "pull")
             {
-                throw new Exception("Git Conflict: You have local uncommitted changes that would be overwritten by a pull.\n" +
-                                    "Please COMMIT your changes or run 'git stash' before updating.");
+                if (error.Contains("local changes"))
+                {
+                    throw new Exception("Git Conflict: You have local uncommitted changes that would be overwritten by a pull.\n" +
+                                        "Please COMMIT your changes or run 'git stash' before updating.");
+                }
+                if (error.Contains("unmerged files") || error.Contains("unresolved conflict"))
+                {
+                    throw new Exception("Git Conflict: You have unresolved merge conflicts from a previous attempt.\n" +
+                                        "Please run 'git merge --abort' to reset your project state and try again.");
+                }
             }
             throw new Exception(string.Format("Command '{0} {1}' failed.\nError: {2}", cmd, args, error));
         }
