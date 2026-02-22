@@ -162,7 +162,10 @@ class Update
                     if (Console.ReadLine().ToLower() == "y")
                     {
                         Console.WriteLine("Executing Force Sync (Fetch & Reset)...");
-                        RunCommand("git", "merge --abort", workingDir);
+                        if (File.Exists(Path.Combine(workingDir, ".git", "MERGE_HEAD")))
+                        {
+                            RunCommand("git", "merge --abort", workingDir);
+                        }
                         RunCommand("git", "fetch --all", workingDir);
                         // Force align with the remote master
                         RunCommand("git", "reset --hard origin/master", workingDir);
