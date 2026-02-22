@@ -1,4 +1,4 @@
-# Personal Knowledge Base & AI Meta-Repo
+# Personal Knowledge Base & AI Meta-Repo (v1.0.0)
 
 This repository serves as a centralized hub for AI workflows, persistent memory, and coding best practices. It is designed to be easily integrated into other projects to provide consistent context for AI assistants.
 

@@ -1,0 +1,42 @@
+name: Auto Versioning
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'VERSION'
+      - 'README.md'
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Increment Version
+        id: versioning
+        run: |
+          VERSION=$(cat VERSION)
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          patch=$((patch + 1))
+          NEW_VERSION="$major.$minor.$patch"
+          echo "OLD_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo $NEW_VERSION > VERSION
+          echo "::set-output name=new_version::$NEW_VERSION"
+
+      - name: Update README
+        run: |
+          sed -i "s/v${OLD_VERSION}/v${NEW_VERSION}/g" README.md
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add VERSION README.md
+          git commit -m "chore: bump version to ${{ env.NEW_VERSION }} [skip ci]"
+          git push
