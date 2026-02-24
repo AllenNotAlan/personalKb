@@ -1,5 +1,6 @@
 param (
-    [string]$DestPath = "."
+    [string]$DestPath = ".",
+    [switch]$SkipRules
 )
 
 $scriptFilePath = $MyInvocation.MyCommand.Path
@@ -25,5 +26,25 @@ foreach ($item in $itemsToCopy) {
     }
 }
 
+# Generate IDE-specific rule files for automated AI bootstrapping
+if (-not $SkipRules) {
+    $ruleContent = @"
+# AI Project Rules
+Always refer to the Knowledge Base in `.context/knowledge/` and the AI Discovery Manual in `.context/knowledge/README.md` before performing tasks.
+Prioritize project-specific patterns documented in `.context/knowledge/ki/`.
+Follow the session context stored in `.context/knowledge/retrospectives/`.
+"@
+
+    $ruleFiles = @(".cursorrules", ".clinerules", ".windsurfrules")
+    foreach ($file in $ruleFiles) {
+        $rulePath = Join-Path $DestPath $file
+        if (-not (Test-Path $rulePath)) {
+            $ruleContent | Out-File -FilePath $rulePath -Encoding utf8
+            Write-Host "Generated: $file" -ForegroundColor Gray
+        }
+    }
+}
+
 Write-Host "Context installed successfully!" -ForegroundColor Green
+Write-Host "AI assisted IDEs (Cursor/Windsurf) will now auto-load project context." -ForegroundColor Cyan
 Write-Host "To initialize, run: .\.context\scripts\init.ps1 (if available)" -ForegroundColor Gray
